@@ -1,0 +1,21 @@
+{
+  "name": "classification-ia",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "node-backend"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:node-backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && python3 run.py",
+    "dev:node-backend": "npm run dev -w node-backend",
+    "dev:frontend": "npm run dev -w frontend",
+    "build": "npm run build -w node-backend && npm run build -w frontend",
+    "lint": "npm run lint -w frontend",
+    "db:migrate": "npm run db:migrate -w node-backend",
+    "db:seed": "npm run db:seed -w node-backend"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0"
+  }
+}

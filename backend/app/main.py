@@ -1,6 +1,7 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from app.schemas import PredictResponse, ErrorResponse
-from app.model_loader import predict_image
+from app.model_loader import predict_image, CIFAR10_CLASSES
 from PIL import Image
 import io
 
@@ -10,10 +11,23 @@ app = FastAPI(
     version="1.0.0",
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
+
+@app.get("/models")
+def get_models():
+    return {"classes": CIFAR10_CLASSES, "model": "CNN CIFAR-10"}
 
 
 @app.post(

@@ -3,141 +3,201 @@
 ![Python](https://img.shields.io/badge/Python-3.12-blue?logo=python&logoColor=white)
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-EE4C2C?logo=pytorch&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688?logo=fastapi&logoColor=white)
-![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-20-339933?logo=node.js&logoColor=white)
+![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
+![Tailwind](https://img.shields.io/badge/Tailwind-3-06B6D4?logo=tailwindcss&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
 ![License](https://img.shields.io/badge/Licença-MIT-green)
 
-API REST de classificação de imagens usando uma Rede Neural Convolucional (CNN) treinada no CIFAR-10, servida com FastAPI e empacotada com Docker.
+Plataforma completa de classificação de imagens usando uma CNN treinada no CIFAR-10, com frontend React, API Gateway Node.js, backend Python/FastAPI e PostgreSQL para histórico de predições.
 
 ## 📌 Visão Geral
 
-O projeto cobre o ciclo completo de um modelo de classificação de imagens: treinar uma CNN do zero, exportá-la como modelo TorchScript e servir predições via API REST. A inferência roda em CPU, sem necessidade de GPU para deploy.
+O projeto cobre o ciclo completo de um modelo de classificação de imagens: treinar uma CNN do zero, exportá-la como modelo TorchScript, servir predições via API REST e disponibilizar uma interface web com histórico persistido em banco de dados.
 
 **🏷️ Classes suportadas:** avião, automóvel, pássaro, gato, veado, cachorro, sapo, cavalo, navio, caminhão
 
 ## 🏗️ Arquitetura
 
 ```
-POST /predict  →  model_loader.py (pré-processamento)  →  CNN (TorchScript)  →  JSON
+Navegador → React (Vite) → Node.js (Express) → Python (FastAPI) → CNN (TorchScript)
+                              ↕
+                         PostgreSQL (histórico)
 ```
 
-A CNN tem três blocos convolucionais (32 → 64 → 128 canais), cada um com BatchNorm e MaxPool, seguidos de Dropout e duas camadas fully connected. O treinamento usa Adam com scheduler CosineAnnealing e augmentação padrão do CIFAR-10 (random crop + horizontal flip).
+O fluxo de uma predição:
+1. Usuário faz upload de uma imagem no frontend React
+2. O frontend envia a imagem para o API Gateway Node.js
+3. O Node.js encaminha para o backend Python/FastAPI
+4. O Python executa a inferência com PyTorch e retorna classe + confiança
+5. O Node.js salva o resultado no PostgreSQL e retorna ao frontend
 
 ## 📁 Estrutura do Projeto
 
 ```
 classificationIA/
-├── app/
-│   ├── main.py           # Aplicação FastAPI e rotas
-│   ├── model_loader.py   # Carregamento do modelo e inferência
-│   └── schemas.py        # Schemas Pydantic para request/response
-├── training/
-│   └── train.py          # Definição da CNN e loop de treinamento
-├── models/               # Pesos salvos do modelo (gerado após o treino)
-├── Dockerfile
-├── requirements.txt
-└── run.py                # Servidor para desenvolvimento local
+├── backend/                   # API Python/FastAPI
+│   ├── app/
+│   │   ├── main.py            # Rotas da API (+ CORS, /models)
+│   │   ├── model_loader.py    # Carregamento do modelo e inferência
+│   │   └── schemas.py         # Schemas Pydantic
+│   ├── training/
+│   │   └── train.py           # Definição da CNN e loop de treinamento
+│   ├── Dockerfile
+│   └── requirements.txt
+├── node-backend/              # API Gateway Node.js + TypeScript
+│   ├── src/
+│   │   ├── index.ts           # Servidor Express (porta 3001)
+│   │   ├── config.ts          # Configurações (variáveis de ambiente)
+│   │   ├── prisma.ts          # Cliente Prisma
+│   │   └── routes/
+│   │       ├── predict.ts     # Proxy de predição + salvamento no DB
+│   │       └── history.ts     # CRUD do histórico
+│   ├── prisma/schema.prisma   # Modelo PredictionHistory
+│   └── Dockerfile
+├── frontend/                  # React + TypeScript + Tailwind (Vite)
+│   ├── src/
+│   │   ├── pages/
+│   │   │   ├── Home.tsx       # Upload e classificação
+│   │   │   ├── History.tsx    # Histórico paginado
+│   │   │   └── HistoryDetail.tsx  # Detalhe da predição
+│   │   ├── components/
+│   │   │   ├── Layout.tsx     # Navbar + estrutura base
+│   │   │   ├── ImageUploader.tsx  # Drag-and-drop upload
+│   │   │   └── ResultCard.tsx     # Exibição do resultado
+│   │   └── api.ts             # Cliente HTTP
+│   └── Dockerfile
+├── database/
+│   └── init.sql               # Schema inicial do PostgreSQL
+├── docker-compose.yml         # Orquestração dos 4 serviços
+├── package.json               # Monorepo com npm workspaces
+└── README.md
 ```
 
 ## 🚀 Como Usar
 
 ### ✅ Requisitos
 
+- Node.js 20+
 - Python 3.12+
 - PyTorch 2.0+
+- Docker e Docker Compose (opcional)
 
 ### 📦 Instalação
 
 ```bash
-git clone https://github.com/seu-usuario/classificationIA.git
+git clone https://github.com/igordiaazz/classificationIA.git
 cd classificationIA
-pip install -r requirements.txt
+npm install
 ```
 
 ### 🎓 Treinar o Modelo
 
 ```bash
-python training/train.py
+cd backend
+pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
+python3 training/train.py
 ```
 
-O dataset CIFAR-10 é baixado automaticamente. Dois arquivos são salvos em `models/`:
+O dataset CIFAR-10 é baixado automaticamente. Dois arquivos são salvos em `backend/models/`:
 - `cifar10_cnn.pth` — state dict puro
 - `cifar10_cnn.pt` — TorchScript (usado pela API)
 
 O treinamento roda por 10 épocas. Acurácia esperada no teste: ~75–80%.
 
-### ▶️ Subir a API
+### ▶️ Desenvolvimento Local
 
 ```bash
-python run.py
+# 1. Subir o PostgreSQL
+docker compose up postgres -d
+
+# 2. Rodar as migrações do Prisma
+npm run db:migrate
+
+# 3. Iniciar os 3 serviços em paralelo
+npm run dev
 ```
 
-O servidor sobe em `http://127.0.0.1:8000`. Documentação interativa disponível em `/docs`.
+| Serviço | Porta |
+|---------|-------|
+| Frontend (React/Vite) | http://localhost:5173 |
+| Node.js (Express) | http://localhost:3001 |
+| Python (FastAPI) | http://localhost:8000 |
+
+### 🐳 Docker Compose (Produção)
+
+```bash
+docker compose up --build
+```
 
 ## 📡 Referência da API
 
-### `GET /health`
+### Python/FastAPI (porta 8000)
 
-Retorna o status do servidor.
-
+#### `GET /health`
+Retorna o status do servidor Python.
 ```json
 { "status": "ok" }
 ```
 
-### `POST /predict`
-
-Classifica uma imagem enviada via upload.
-
-**Request:** `multipart/form-data` com o campo `file` contendo uma imagem JPEG ou PNG.
-
-**Response:**
-
+#### `GET /models`
+Retorna as classes suportadas pelo modelo.
 ```json
 {
-  "classe": "gato",
-  "confianca": 0.8631
+  "classes": ["aviao", "automovel", "passaro", "gato", ...],
+  "model": "CNN CIFAR-10"
 }
 ```
 
-**💻 Exemplo com curl:**
-
-```bash
-curl -X POST http://127.0.0.1:8000/predict \
-  -F "file=@sua_imagem.jpg"
+#### `POST /predict`
+Classifica uma imagem enviada via upload.
+**Request:** `multipart/form-data` com o campo `file`
+**Response:**
+```json
+{ "classe": "gato", "confianca": 0.8631 }
 ```
 
-**⚠️ Códigos de erro:**
+### Node.js/Express (porta 3001)
 
-| Status | Motivo |
-|--------|--------|
-| 400 | Arquivo inválido ou corrompido |
-| 415 | Tipo de arquivo não suportado (não é imagem) |
-| 500 | Erro interno na inferência |
-
-## 🐳 Docker
-
-```bash
-# Build
-docker build -t classificationia .
-
-# Run
-docker run -p 8000:8000 classificationia
+#### `POST /api/predict`
+Proxy para o backend Python. Aceita multipart e retorna o resultado com ID do histórico.
+```json
+{
+  "id": "uuid",
+  "classe": "gato",
+  "confianca": 0.8631,
+  "filename": "gato.jpg",
+  "createdAt": "2026-06-30T..."
+}
 ```
 
-A imagem usa `python:3.12-slim` com build CPU-only do PyTorch.
+#### `GET /api/history?page=1&limit=20`
+Histórico paginado de predições.
+```json
+{
+  "data": [{ "id": "uuid", "filename": "...", "predictedClass": "...", "confidence": 0.86, "createdAt": "..." }],
+  "pagination": { "page": 1, "limit": 20, "total": 42, "totalPages": 3 }
+}
+```
 
-> ⚠️ **Atenção:** O diretório `models/` com o arquivo `.pt` treinado precisa existir antes do build. Rode o treinamento primeiro ou copie um modelo pré-treinado para esse diretório.
+#### `GET /api/history/:id`
+Detalhe completo de uma predição (inclui `imageData` em base64).
+#### `DELETE /api/history/:id`
+Remove um registro do histórico.
 
 ## 🛠️ Stack
 
-| Componente | Biblioteca |
+| Componente | Tecnologia |
 |------------|------------|
-| 🔥 Deep learning | PyTorch 2.0+ |
-| 🖼️ Dados e transforms | torchvision |
-| 📦 Exportação do modelo | TorchScript (`torch.jit`) |
-| ⚡ Framework da API | FastAPI |
-| 🌐 Servidor | Uvicorn |
-| 🖼️ Processamento de imagens | Pillow |
-| 🐳 Containerização | Docker |
+| 🔥 Deep learning | PyTorch 2.0+ / torchvision |
+| 🐍 API de inferência | FastAPI + Uvicorn |
+| ⚡ API Gateway | Node.js + Express + TypeScript |
+| 🗄️ Banco de dados | PostgreSQL 16 + Prisma ORM |
+| 🎨 Frontend | React 18 + TypeScript + Vite |
+| 💅 Estilização | Tailwind CSS 3 |
+| 🐳 Containerização | Docker Compose |
 
 ## ⚙️ Configuração do Treinamento
 
